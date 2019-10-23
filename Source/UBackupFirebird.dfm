@@ -21,20 +21,20 @@ object frmBackupFirebird: TfrmBackupFirebird
   object lbl1: TLabel
     Left = 10
     Top = 13
-    Width = 81
+    Width = 111
     Height = 13
-    Caption = 'Banco de Dados:'
+    Caption = 'Banco de Dados (FDB):'
   end
   object lbl2: TLabel
     Left = 10
     Top = 45
-    Width = 93
+    Width = 122
     Height = 13
-    Caption = 'Arquivo de Backup:'
+    Caption = 'Arquivo de Backup (FBK):'
   end
   object lbl4: TLabel
     Left = 10
-    Top = 78
+    Top = 77
     Width = 93
     Height = 13
     Caption = 'Par'#226'metros Extras:'
@@ -53,9 +53,9 @@ object frmBackupFirebird: TfrmBackupFirebird
   end
   object lstVerbose: TListBox
     Left = 8
-    Top = 102
+    Top = 101
     Width = 778
-    Height = 472
+    Height = 473
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
     Font.Height = -11
@@ -67,9 +67,9 @@ object frmBackupFirebird: TfrmBackupFirebird
     OnDblClick = lstVerboseDblClick
   end
   object edtArquivoBancoDados: TButtonedEdit
-    Left = 107
-    Top = 8
-    Width = 598
+    Left = 138
+    Top = 10
+    Width = 567
     Height = 21
     Images = imlBackupFirebird
     RightButton.ImageIndex = 0
@@ -78,9 +78,9 @@ object frmBackupFirebird: TfrmBackupFirebird
     OnRightButtonClick = edtArquivoBancoDadosRightButtonClick
   end
   object edtArquivoBackup: TButtonedEdit
-    Left = 107
+    Left = 138
     Top = 42
-    Width = 598
+    Width = 567
     Height = 21
     Images = imlBackupFirebird
     RightButton.ImageIndex = 0
@@ -101,9 +101,9 @@ object frmBackupFirebird: TfrmBackupFirebird
     OnClick = btnRestoreClick
   end
   object edtParametroExtra: TEdit
-    Left = 107
-    Top = 75
-    Width = 679
+    Left = 138
+    Top = 74
+    Width = 648
     Height = 21
     TabOrder = 2
   end
