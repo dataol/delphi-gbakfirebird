@@ -3,32 +3,33 @@ unit UBackupFirebird;
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
-  Vcl.ImgList, cxPropertiesStore, dxGDIPlusClasses;
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls,
+  Vcl.ExtCtrls, Vcl.ImgList, System.ImageList, Registry;
 
 type
   TfrmBackupFirebird = class(TForm)
     btnBackup: TButton;
     lstVerbose: TListBox;
-    edtBackup: TButtonedEdit;
+    edtArquivoBancoDados: TButtonedEdit;
     lbl1: TLabel;
     lbl2: TLabel;
-    edtRestore: TButtonedEdit;
+    edtArquivoBackup: TButtonedEdit;
     btnRestore: TButton;
     imlBackupFirebird: TImageList;
-    ppsBackupFirebird: TcxPropertiesStore;
-    img1: TImage;
-    lbl3: TLabel;
     edtParametroExtra: TEdit;
     lbl4: TLabel;
     procedure btnBackupClick(Sender: TObject);
     procedure btnRestoreClick(Sender: TObject);
-    procedure edtBackupRightButtonClick(Sender: TObject);
-    procedure edtRestoreRightButtonClick(Sender: TObject);
+    procedure edtArquivoBancoDadosRightButtonClick(Sender: TObject);
+    procedure edtArquivoBackupRightButtonClick(Sender: TObject);
     procedure lstVerboseDblClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
-    function ExecutaGBak(Comando, Parametros, BackupRestore: string): Boolean;
+    function ExecutaGBAK(Comando, Parametros, BackupRestore: string): Boolean;
+    procedure SalvarPropriedadesRegistro;
+    procedure CarregarPropriedadesRegistro;
   public
     { Public declarations }
   end;
@@ -42,12 +43,12 @@ implementation
 
 procedure TfrmBackupFirebird.btnRestoreClick(Sender: TObject);
 begin
-  if (Trim(edtRestore.Text) = EmptyStr) or (not FileExists(Trim(edtRestore.Text))) then
+  if (Trim(edtArquivoBackup.Text) = EmptyStr) or (not FileExists(Trim(edtArquivoBackup.Text))) then
   begin
     Application.MessageBox(PChar('Arquivo não encontrado. Selecione o arquivo de backup a ser restaurado.'),
                            PChar(Application.Title), MB_OK + MB_ICONINFORMATION);
-    edtRestore.SetFocus;
-    edtRestore.SelectAll;
+    edtArquivoBackup.SetFocus;
+    edtArquivoBackup.SelectAll;
     Exit;
   end;
 
@@ -58,8 +59,8 @@ begin
     lstVerbose.Enabled := False;
     lstVerbose.Items.Clear;
     ExecutaGBak('GBAK -CREATE -VERBOSE -REPLACE_DATABASE ' +
-                edtParametroExtra.Text + ' ' + edtRestore.Text + ' ' +
-                StringReplace(AnsiUpperCase(edtRestore.Text),'.FBK', '.FDB', [rfReplaceAll]) + ' ' +
+                edtParametroExtra.Text + ' ' + edtArquivoBackup.Text + ' ' +
+                StringReplace(AnsiUpperCase(edtArquivoBackup.Text),'.FBK', '.FDB', [rfReplaceAll]) + ' ' +
                 '-USER SYSDBA -PASSWORD masterkey', '', 'Restore');
   finally
     btnBackup.Enabled  := True;
@@ -69,15 +70,33 @@ begin
   end;
 end;
 
-procedure TfrmBackupFirebird.edtBackupRightButtonClick(Sender: TObject);
+procedure TfrmBackupFirebird.CarregarPropriedadesRegistro;
+var
+  Reg: TRegistry;
+begin
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+    Reg.CreateKey('\Software\' + Application.Title);
+    Reg.OpenKey('\Software\' + Application.Title, True);
+    edtArquivoBancoDados.Text := Reg.ReadString('ArquivoBancoDados');
+    edtArquivoBackup.Text     := Reg.ReadString('ArquivoBackup');
+    edtParametroExtra.Text    := Reg.ReadString('ParametroExtra');
+  finally
+    Reg.CloseKey;
+    Reg.Free;
+  end;
+end;
+
+procedure TfrmBackupFirebird.edtArquivoBancoDadosRightButtonClick(Sender: TObject);
 var
   OpenDialog : TOpenDialog;
 begin
   OpenDialog := TOpenDialog.Create(Self);
   try
-    if (edtBackup.Text <> '') and DirectoryExists(ExtractFilePath(edtBackup.Text)) then
+    if (edtArquivoBancoDados.Text <> '') and DirectoryExists(ExtractFilePath(edtArquivoBancoDados.Text)) then
     begin
-      OpenDialog.InitialDir := ExtractFilePath(edtBackup.Text);
+      OpenDialog.InitialDir := ExtractFilePath(edtArquivoBancoDados.Text);
     end
     else
     begin
@@ -87,22 +106,22 @@ begin
     OpenDialog.Filter := 'Banco de Dados Firebird|*.fdb';
     if OpenDialog.Execute then
     begin
-      edtBackup.Text := OpenDialog.FileName;
+      edtArquivoBancoDados.Text := OpenDialog.FileName;
     end;
   finally
     OpenDialog.Free;
   end;
 end;
 
-procedure TfrmBackupFirebird.edtRestoreRightButtonClick(Sender: TObject);
+procedure TfrmBackupFirebird.edtArquivoBackupRightButtonClick(Sender: TObject);
 var
   OpenDialog : TOpenDialog;
 begin
   OpenDialog := TOpenDialog.Create(Self);
   try
-    if (edtRestore.Text <> '') and DirectoryExists(ExtractFilePath(edtRestore.Text)) then
+    if (edtArquivoBackup.Text <> '') and DirectoryExists(ExtractFilePath(edtArquivoBackup.Text)) then
     begin
-      OpenDialog.InitialDir := ExtractFilePath(edtRestore.Text);
+      OpenDialog.InitialDir := ExtractFilePath(edtArquivoBackup.Text);
     end
     else
     begin
@@ -112,14 +131,14 @@ begin
     OpenDialog.Filter := 'Backup Firebird|*.fbk';
     if OpenDialog.Execute then
     begin
-      edtRestore.Text := OpenDialog.FileName;
+      edtArquivoBackup.Text := OpenDialog.FileName;
     end;
   finally
     OpenDialog.Free;
   end;
 end;
 
-function TfrmBackupFirebird.ExecutaGBak(Comando, Parametros, BackupRestore: string): Boolean;
+function TfrmBackupFirebird.ExecutaGBAK(Comando, Parametros, BackupRestore: string): Boolean;
 const
   BUFFER_SIZE = 2400;
 var
@@ -154,9 +173,13 @@ begin
       dwFlags := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES;
 
       if (Win32Platform = VER_PLATFORM_WIN32_WINDOWS) then
-        wShowWindow := SW_HIDE
+      begin
+        wShowWindow := SW_HIDE;
+      end
       else
+      begin
         wShowWindow := SW_SHOWMINNOACTIVE;
+      end;
 
       hStdInput := GetStdHandle(STD_INPUT_HANDLE);
       hStdOutput := StdOutPipeWrite;
@@ -227,7 +250,7 @@ begin
         lstVerbose.Items.Add(BackupRestore + ' realizado com sucesso!');
         if (BackupRestore = 'Backup') then
         begin
-          edtRestore.Text := Copy(edtBackup.Text, 1, (Length(edtBackup.Text) - 3)) + 'FBK';
+          edtArquivoBackup.Text := Copy(edtArquivoBancoDados.Text, 1, (Length(edtArquivoBancoDados.Text) - 3)) + 'FBK';
           btnRestore.Enabled := True;
         end;
       end
@@ -252,19 +275,48 @@ begin
   end;
 end;
 
+procedure TfrmBackupFirebird.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+  SalvarPropriedadesRegistro;
+end;
+
+procedure TfrmBackupFirebird.FormShow(Sender: TObject);
+begin
+  CarregarPropriedadesRegistro;
+end;
+
 procedure TfrmBackupFirebird.lstVerboseDblClick(Sender: TObject);
 begin
   ShowMessage(lstVerbose.Items[lstVerbose.ItemIndex]);
 end;
 
+procedure TfrmBackupFirebird.SalvarPropriedadesRegistro;
+var
+  Reg: TRegistry;
+begin
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+    Reg.CreateKey('\Software\' + Application.Title);
+    Reg.OpenKey('\Software\' + Application.Title, True);
+    Reg.WriteString('ArquivoBancoDados', edtArquivoBancoDados.Text);
+    Reg.WriteString('ArquivoBackup', edtArquivoBackup.Text);
+    Reg.WriteString('ParametroExtra', edtParametroExtra.Text);
+  finally
+    Reg.CloseKey;
+    Reg.Free;
+  end;
+end;
+
 procedure TfrmBackupFirebird.btnBackupClick(Sender: TObject);
 begin
-  if (Trim(edtBackup.Text) = EmptyStr) or (not FileExists(Trim(edtBackup.Text))) then
+  if (Trim(edtArquivoBancoDados.Text) = EmptyStr) or (not FileExists(Trim(edtArquivoBancoDados.Text))) then
   begin
     Application.MessageBox(PChar('Arquivo não encontrado. Selecione o banco de dados do qual será realizado o backup.'),
                            PChar(Application.Title), MB_OK + MB_ICONINFORMATION);
-    edtBackup.SetFocus;
-    edtBackup.SelectAll;
+    edtArquivoBancoDados.SetFocus;
+    edtArquivoBancoDados.SelectAll;
     Exit;
   end;
 
@@ -275,8 +327,8 @@ begin
     lstVerbose.Enabled := False;
     lstVerbose.Items.Clear;
     ExecutaGBak('GBAK -BACKUP -VERBOSE -TRANSPORTABLE -IGNORE -GARBAGE -LIMBO ' +
-                edtParametroExtra.Text + ' ' + edtBackup.Text + ' ' +
-                StringReplace(AnsiUpperCase(edtBackup.Text), '.FDB', '.FBK', [rfReplaceAll]) + ' ' +
+                edtParametroExtra.Text + ' ' + edtArquivoBancoDados.Text + ' ' +
+                StringReplace(AnsiUpperCase(edtArquivoBancoDados.Text), '.FDB', '.FBK', [rfReplaceAll]) + ' ' +
                 '-USER SYSDBA -PASSWORD masterkey', '', 'Backup');
   finally
     btnBackup.Enabled  := True;

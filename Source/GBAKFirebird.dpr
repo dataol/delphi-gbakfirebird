@@ -1,4 +1,4 @@
-program BackupFirebird;
+program GBAKFirebird;
 
 uses
   Vcl.Forms,
@@ -11,7 +11,8 @@ uses
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.Title := 'Backup Firebird';
+  TStyleManager.TrySetStyle('Windows10');
+  Application.Title := 'GBAKFirebird';
   Application.CreateForm(TfrmBackupFirebird, frmBackupFirebird);
   Application.Run;
 end.

@@ -3,7 +3,7 @@ object frmBackupFirebird: TfrmBackupFirebird
   Top = 0
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
-  Caption = 'Backup/Restore Firebird'
+  Caption = 'GBAK Firebird'
   ClientHeight = 582
   ClientWidth = 794
   Color = clBtnFace
@@ -14,6 +14,8 @@ object frmBackupFirebird: TfrmBackupFirebird
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
+  OnClose = FormClose
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object lbl1: TLabel
@@ -29,56 +31,6 @@ object frmBackupFirebird: TfrmBackupFirebird
     Width = 93
     Height = 13
     Caption = 'Arquivo de Backup:'
-  end
-  object img1: TImage
-    Left = 349
-    Top = 552
-    Width = 24
-    Height = 24
-    AutoSize = True
-    Picture.Data = {
-      0B546478504E47496D61676589504E470D0A1A0A0000000D4948445200000018
-      000000180806000000E0773DF80000000467414D410000B18F0BFC6105000000
-      097048597300000EC200000EC20115284A800000033149444154484BED556B48
-      9361143EF3525A4AFDCC22E7749BB3AD9997799FB7222B99954A536B7949BB48
-      866260A196499182E4BC65490625F5232151D2FCE12FC90A31CA5B4E74EE62D4
-      AF8C8A2032BF75BE7DEFA7DF26EB427F7DE0F09EF39EE739DF7B39EF066BF867
-      9892CE79CCA795ED312515E598F7175F34259CA933C69FBE634A2C7C648C3DD5
-      6D8CCEEF3544E5F7E1F8C4A83CD985B98786C813ADE8D7A07F1E39597A4576F4
-      B8D73E57527205A6DD85BE4834E836C45253CE11962908A3DE8282C2D1C21D59
-      E3C6B44FF35147E9DC959621B7F046527605C698822642FC6FEB04E90B5296C1
-      5CC87127BDE4C87B47ABB39FB38FEDFD0E081820A519E03946EA36C63914D8CF
-      D9C7F6FE7D907492D20C0CE1B957E804D7FA41FEE506F8755F03418716846DCD
-      206A6E02616323081B9A40D47813C42D5A2771FB4B17C53B7BED3D90DC22A519
-      E8A5198374825D059A050BB693F46F31E37778D45EDB0AA22A92C6E23BB3DC67
-      B6AB3E7349E348AA073F0DA138C4EC0EF5BA996DC99FB8DA09D4E24E7309052F
-      385823D779C6DB9CE333085A6A019184501C02B5E2E94D894B5CED3004530D20
-      0C231424051DCB207DBF6C5D205BC06DAE2314873084666BA69C236DB43D20FB
-      7A1BC41E84824724CBACC0C4F20EC62094BA0E02DB2E7080B9204D2B574BDB5D
-      F07F4ED20C6645696D3481B61108B15C06FE83069E683D493B842122CF654E96
-      39CE6A998F8459B0CB6A0985C1AC30B58FFEF2109E7B05F06BB53C118FA4C07C
-      A0986F4E2E193446174CE24B9FC0DF209D213CCF842B5FD0FBA7FFD4B9C55857
-      CD145750AF71F7B5E09B44E40CA6BD55C30310B85809FCB364CA0A734AE92E2C
-      36CF8AD991356ECCFA8F41FA0DEFCE9D9460D0BF3561ACD255984E422BE653CB
-      12F452F5475AF8B7461F0FB6670F29C1A0CB2BD6A9DE532E27A11573074BD5B3
-      8243DF5160B33A76648D1BD3FE2B08A1AAC1279394598D5EE551DE88AAA8E4CD
-      96BD8BA3106AC1C7463F1A6A121F0E9AF501D17398A3B019E83BB3E0D152DD20
-      FB819DF3E112F0B5F8385D48B9D5781A95C56BF38A0AA8F60850963BF9A4D0AB
-      C10BCBA903BF7CDA6AD0AF021FF505F05695033FEE2A0802B1E3F8386E465BFD
-      07B3863F03E017533C3A16C4169A1F0000000049454E44AE426082}
-  end
-  object lbl3: TLabel
-    Left = 382
-    Top = 555
-    Width = 118
-    Height = 16
-    Caption = 'Frontsys Sistemas'
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -13
-    Font.Name = 'Tahoma'
-    Font.Style = [fsBold, fsItalic]
-    ParentFont = False
   end
   object lbl4: TLabel
     Left = 10
@@ -103,7 +55,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     Left = 8
     Top = 102
     Width = 778
-    Height = 444
+    Height = 472
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
     Font.Height = -11
@@ -114,7 +66,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     TabOrder = 5
     OnDblClick = lstVerboseDblClick
   end
-  object edtBackup: TButtonedEdit
+  object edtArquivoBancoDados: TButtonedEdit
     Left = 107
     Top = 8
     Width = 598
@@ -123,9 +75,9 @@ object frmBackupFirebird: TfrmBackupFirebird
     RightButton.ImageIndex = 0
     RightButton.Visible = True
     TabOrder = 0
-    OnRightButtonClick = edtBackupRightButtonClick
+    OnRightButtonClick = edtArquivoBancoDadosRightButtonClick
   end
-  object edtRestore: TButtonedEdit
+  object edtArquivoBackup: TButtonedEdit
     Left = 107
     Top = 42
     Width = 598
@@ -134,7 +86,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     RightButton.ImageIndex = 0
     RightButton.Visible = True
     TabOrder = 1
-    OnRightButtonClick = edtRestoreRightButtonClick
+    OnRightButtonClick = edtArquivoBackupRightButtonClick
   end
   object btnRestore: TButton
     Left = 711
@@ -298,27 +250,5 @@ object frmBackupFirebird: TfrmBackupFirebird
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
       000000000000}
-  end
-  object ppsBackupFirebird: TcxPropertiesStore
-    Components = <
-      item
-        Component = edtBackup
-        Properties.Strings = (
-          'Text')
-      end
-      item
-        Component = edtParametroExtra
-        Properties.Strings = (
-          'Text')
-      end
-      item
-        Component = edtRestore
-        Properties.Strings = (
-          'Text')
-      end>
-    StorageName = 'Software\BackupFirebird\Principal'
-    StorageType = stRegistry
-    Left = 396
-    Top = 24
   end
 end
