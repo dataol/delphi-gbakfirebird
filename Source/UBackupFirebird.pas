@@ -291,8 +291,32 @@ begin
   SalvarPropriedadesRegistro;
 end;
 
+function GetVersion(FileName: WideString): string;
+var
+  VersionInfoSize, VerInfoSize, GetInfoSizeJunk: LongWord;
+  VersionInfo, Translation, InfoPointer: Pointer;
+  VersionValue: WideString;
+begin
+  VerInfoSize := GetFileVersionInfoSizeW(PWideChar(FileName), GetInfoSizeJunk);
+  if (VerInfoSize > 0) then
+  begin
+    GetMem(VersionInfo, VerInfoSize);
+    try
+      GetFileVersionInfoW(PWideChar(FileName), 0, VerInfoSize, VersionInfo);
+      VerQueryValue(VersionInfo, '\\VarFileInfo\\Translation', Translation, VerInfoSize);
+      VersionValue := '\\StringFileInfo\\' + IntToHex((PLongInt(Translation)^ shl 16) or (PLongInt(Translation)^ shr 16), 8) + '\\';
+      VersionInfoSize := 0;
+      VerQueryValueW(VersionInfo, PWideChar(VersionValue + 'FileVersion'), InfoPointer, VersionInfoSize);
+      Result := Trim(PWideChar(InfoPointer));
+    finally
+      FreeMem(VersionInfo);
+    end;
+  end;
+end;
+
 procedure TfrmBackupFirebird.FormShow(Sender: TObject);
 begin
+  Caption := 'GBAK Firebird v.' + GetVersion(Application.ExeName);
   CarregarPropriedadesRegistro;
 end;
 

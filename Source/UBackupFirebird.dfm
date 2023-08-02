@@ -9,39 +9,39 @@ object frmBackupFirebird: TfrmBackupFirebird
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
+  Font.Height = -12
+  Font.Name = 'Segoe UI'
   Font.Style = []
   Position = poScreenCenter
   OnClose = FormClose
   OnShow = FormShow
-  TextHeight = 13
+  TextHeight = 15
   object lbl1: TLabel
     Left = 10
     Top = 35
-    Width = 111
-    Height = 13
+    Width = 120
+    Height = 15
     Caption = 'Banco de Dados (FDB):'
   end
   object lbl2: TLabel
     Left = 10
-    Top = 67
-    Width = 122
-    Height = 13
+    Top = 64
+    Width = 134
+    Height = 15
     Caption = 'Arquivo de Backup (FBK):'
   end
   object lbl4: TLabel
     Left = 10
-    Top = 99
-    Width = 93
-    Height = 13
+    Top = 93
+    Width = 97
+    Height = 15
     Caption = 'Par'#226'metros Extras:'
   end
   object btnBackup: TButton
     Left = 711
     Top = 30
     Width = 75
-    Height = 25
+    Height = 28
     Caption = '&Backup'
     ImageIndex = 1
     ImageMargins.Left = 5
@@ -51,9 +51,9 @@ object frmBackupFirebird: TfrmBackupFirebird
   end
   object lstVerbose: TListBox
     Left = 8
-    Top = 123
+    Top = 119
     Width = 778
-    Height = 451
+    Height = 455
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
     Font.Height = -11
@@ -65,10 +65,10 @@ object frmBackupFirebird: TfrmBackupFirebird
     OnDblClick = lstVerboseDblClick
   end
   object edtArquivoBancoDados: TButtonedEdit
-    Left = 138
+    Left = 150
     Top = 32
-    Width = 567
-    Height = 21
+    Width = 555
+    Height = 23
     Images = imlBackupFirebird
     RightButton.ImageIndex = 0
     RightButton.Visible = True
@@ -76,10 +76,10 @@ object frmBackupFirebird: TfrmBackupFirebird
     OnRightButtonClick = edtArquivoBancoDadosRightButtonClick
   end
   object edtArquivoBackup: TButtonedEdit
-    Left = 138
-    Top = 64
-    Width = 567
-    Height = 21
+    Left = 150
+    Top = 61
+    Width = 555
+    Height = 23
     Images = imlBackupFirebird
     RightButton.ImageIndex = 0
     RightButton.Visible = True
@@ -88,9 +88,9 @@ object frmBackupFirebird: TfrmBackupFirebird
   end
   object btnRestore: TButton
     Left = 711
-    Top = 62
+    Top = 59
     Width = 75
-    Height = 25
+    Height = 28
     Caption = '&Restore'
     ImageIndex = 2
     ImageMargins.Left = 5
@@ -99,10 +99,10 @@ object frmBackupFirebird: TfrmBackupFirebird
     OnClick = btnRestoreClick
   end
   object edtParametroExtra: TEdit
-    Left = 138
-    Top = 96
-    Width = 648
-    Height = 21
+    Left = 150
+    Top = 90
+    Width = 636
+    Height = 23
     TabOrder = 6
   end
   object rbFB25: TRadioButton
@@ -125,8 +125,8 @@ object frmBackupFirebird: TfrmBackupFirebird
   end
   object imlBackupFirebird: TImageList
     ColorDepth = cd32Bit
-    Left = 424
-    Top = 46
+    Left = 760
+    Top = 6
     Bitmap = {
       494C010103000500040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
