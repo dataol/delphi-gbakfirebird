@@ -21,6 +21,7 @@ type
     lbl4: TLabel;
     rbFB25: TRadioButton;
     rbFB30: TRadioButton;
+    rbFB50: TRadioButton;
     procedure btnBackupClick(Sender: TObject);
     procedure btnRestoreClick(Sender: TObject);
     procedure edtArquivoBancoDadosRightButtonClick(Sender: TObject);
@@ -193,6 +194,11 @@ begin
     if rbFB30.Checked then
     begin
       Dir := ExtractFilePath(ParamStr(0)) + '30/';
+    end
+    else
+    if rbFB50.Checked then
+    begin
+      Dir := ExtractFilePath(ParamStr(0)) + '50/';
     end;
 
     //launch the command line compiler

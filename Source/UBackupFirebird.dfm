@@ -33,7 +33,7 @@ object frmBackupFirebird: TfrmBackupFirebird
   object lbl4: TLabel
     Left = 10
     Top = 93
-    Width = 97
+    Width = 96
     Height = 15
     Caption = 'Par'#226'metros Extras:'
   end
@@ -46,7 +46,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     ImageIndex = 1
     ImageMargins.Left = 5
     Images = imlBackupFirebird
-    TabOrder = 2
+    TabOrder = 6
     OnClick = btnBackupClick
   end
   object lstVerbose: TListBox
@@ -61,7 +61,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     Font.Style = []
     ItemHeight = 14
     ParentFont = False
-    TabOrder = 7
+    TabOrder = 8
     OnDblClick = lstVerboseDblClick
   end
   object edtArquivoBancoDados: TButtonedEdit
@@ -83,7 +83,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     Images = imlBackupFirebird
     RightButton.ImageIndex = 0
     RightButton.Visible = True
-    TabOrder = 5
+    TabOrder = 4
     OnRightButtonClick = edtArquivoBackupRightButtonClick
   end
   object btnRestore: TButton
@@ -95,7 +95,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     ImageIndex = 2
     ImageMargins.Left = 5
     Images = imlBackupFirebird
-    TabOrder = 4
+    TabOrder = 7
     OnClick = btnRestoreClick
   end
   object edtParametroExtra: TEdit
@@ -103,7 +103,7 @@ object frmBackupFirebird: TfrmBackupFirebird
     Top = 90
     Width = 636
     Height = 23
-    TabOrder = 6
+    TabOrder = 5
   end
   object rbFB25: TRadioButton
     Left = 8
@@ -118,10 +118,18 @@ object frmBackupFirebird: TfrmBackupFirebird
   object rbFB30: TRadioButton
     Left = 95
     Top = 8
-    Width = 78
+    Width = 81
     Height = 17
     Caption = 'Firebird 3.0'
     TabOrder = 1
+  end
+  object rbFB50: TRadioButton
+    Left = 182
+    Top = 8
+    Width = 81
+    Height = 17
+    Caption = 'Firebird 5.0'
+    TabOrder = 2
   end
   object imlBackupFirebird: TImageList
     ColorDepth = cd32Bit
