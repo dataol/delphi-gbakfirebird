@@ -31,6 +31,7 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     function ExecutaGBAK(Comando, Parametros, BackupRestore: string): Boolean;
+    function ValidarCaminhoArquivo(Caminho: string): Boolean;
     procedure SalvarPropriedadesRegistro;
     procedure CarregarPropriedadesRegistro;
   public
@@ -44,14 +45,60 @@ implementation
 
 {$R *.dfm}
 
+function ObterVersaoODS(const CaminhoBanco: string): string;
+var
+  FS: TFileStream;
+  Buffer: array[0..4] of Byte; // Aumentamos o buffer para capturar o Minor Version
+  OdsMajor, OdsMinor: Byte;
+begin
+  Result := 'Desconhecido';
+
+  if not FileExists(CaminhoBanco) then Exit;
+
+  try
+    FS := TFileStream.Create(CaminhoBanco, fmOpenRead or fmShareDenyNone);
+    try
+      // Offset 18 = Major Version
+      // Offset 20 = Minor Version
+      FS.Position := 18;
+
+      // Lemos 4 bytes de uma vez (Bytes 18, 19, 20 e 21)
+      FS.Read(Buffer, 4);
+
+      OdsMajor := Buffer[0]; // Byte 18 (Major)
+      OdsMinor := Buffer[2]; // Byte 20 (Minor) - Pulamos o byte 19 que é padding
+
+      case OdsMajor of
+        10: Result := 'Versão do banco: Firebird 2.0 / 2.1 (ODS 10)';
+        11: Result := 'Versão do banco: Firebird 2.5 (ODS 11)';
+        12: Result := 'Versão do banco: Firebird 3.0 (ODS 12)';
+        13:
+          begin
+             if OdsMinor = 1 then
+               Result := 'Versão do banco: Firebird 5.0 (ODS 13.1)'
+             else
+               Result := 'Versão do banco: Firebird 4.0 (ODS 13.0)';
+          end;
+      else
+        // Útil para debugging de versões futuras (ex: ODS 14)
+        Result := 'Não foi possível identificar a versão do banco Firebird (ODS ' + IntToStr(OdsMajor) + '.' + IntToStr(OdsMinor) + ')';
+      end;
+
+    finally
+      FS.Free;
+    end;
+  except
+    on E: Exception do
+      Result := 'Erro leitura: ' + E.Message;
+  end;
+end;
+
 procedure TfrmBackupFirebird.btnRestoreClick(Sender: TObject);
 begin
-  if (Trim(edtArquivoBackup.Text) = EmptyStr) or (not FileExists(Trim(edtArquivoBackup.Text))) then
+  lstVerbose.Items.Clear;
+
+  if not ValidarCaminhoArquivo(edtArquivoBackup.Text) then
   begin
-    Application.MessageBox(PChar('Arquivo não encontrado. Selecione o arquivo de backup a ser restaurado.'),
-                           PChar(Application.Title), MB_OK + MB_ICONINFORMATION);
-    edtArquivoBackup.SetFocus;
-    edtArquivoBackup.SelectAll;
     Exit;
   end;
 
@@ -60,7 +107,6 @@ begin
     btnBackup.Enabled  := False;
     btnRestore.Enabled := False;
     lstVerbose.Enabled := False;
-    lstVerbose.Items.Clear;
     ExecutaGBak('GBAK -CREATE -VERBOSE -REPLACE_DATABASE ' +
                 edtParametroExtra.Text + ' ' + edtArquivoBackup.Text + ' ' +
                 StringReplace(AnsiUpperCase(edtArquivoBackup.Text),'.FBK', '.FDB', [rfReplaceAll]) + ' ' +
@@ -349,23 +395,47 @@ begin
   end;
 end;
 
-procedure TfrmBackupFirebird.btnBackupClick(Sender: TObject);
+function TfrmBackupFirebird.ValidarCaminhoArquivo(Caminho: string): Boolean;
 begin
+  Result := False;
+
   if (Trim(edtArquivoBancoDados.Text) = EmptyStr) or (not FileExists(Trim(edtArquivoBancoDados.Text))) then
   begin
-    Application.MessageBox(PChar('Arquivo não encontrado. Selecione o banco de dados do qual será realizado o backup.'),
-                           PChar(Application.Title), MB_OK + MB_ICONINFORMATION);
+    lstVerbose.Items.Add('Arquivo não encontrado. Selecione o banco de dados do qual será realizado o backup.');
     edtArquivoBancoDados.SetFocus;
     edtArquivoBancoDados.SelectAll;
     Exit;
   end;
+
+  if (Pos(' ', Caminho) > 0) then
+  begin
+    lstVerbose.Items.Add('O caminho do arquivo origem NÃO pode conter espaços.');
+    lstVerbose.Items.Add('Caminho inválido: ' + Caminho);
+    edtArquivoBancoDados.SetFocus;
+    edtArquivoBancoDados.SelectAll;
+    Exit;
+  end;
+
+  Result := True;
+end;
+
+procedure TfrmBackupFirebird.btnBackupClick(Sender: TObject);
+begin
+  lstVerbose.Items.Clear;
+
+  if not ValidarCaminhoArquivo(edtArquivoBancoDados.Text) then
+  begin
+    Exit;
+  end;
+
+  lstVerbose.Items.Add(ObterVersaoODS(edtArquivoBancoDados.Text));
+  lstVerbose.Items.Add('');
 
   Screen.Cursor := crHourGlass;
   try
     btnBackup.Enabled  := False;
     btnRestore.Enabled := False;
     lstVerbose.Enabled := False;
-    lstVerbose.Items.Clear;
     ExecutaGBak('GBAK -BACKUP -VERBOSE -TRANSPORTABLE -IGNORE -GARBAGE -LIMBO ' +
                 edtParametroExtra.Text + ' ' + edtArquivoBancoDados.Text + ' ' +
                 StringReplace(AnsiUpperCase(edtArquivoBancoDados.Text), '.FDB', '.FBK', [rfReplaceAll]) + ' ' +
