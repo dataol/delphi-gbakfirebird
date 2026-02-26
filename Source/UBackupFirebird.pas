@@ -399,9 +399,9 @@ function TfrmBackupFirebird.ValidarCaminhoArquivo(Caminho: string): Boolean;
 begin
   Result := False;
 
-  if (Trim(edtArquivoBancoDados.Text) = EmptyStr) or (not FileExists(Trim(edtArquivoBancoDados.Text))) then
+  if (Trim(Caminho) = EmptyStr) or (not FileExists(Trim(Caminho))) then
   begin
-    lstVerbose.Items.Add('Arquivo não encontrado. Selecione o banco de dados do qual será realizado o backup.');
+    lstVerbose.Items.Add('Arquivo não encontrado. Selecione o FBD para backup ou FBK para restauração.');
     edtArquivoBancoDados.SetFocus;
     edtArquivoBancoDados.SelectAll;
     Exit;
@@ -409,7 +409,7 @@ begin
 
   if (Pos(' ', Caminho) > 0) then
   begin
-    lstVerbose.Items.Add('O caminho do arquivo origem NÃO pode conter espaços.');
+    lstVerbose.Items.Add('O caminho do arquivo NÃO pode conter espaços.');
     lstVerbose.Items.Add('Caminho inválido: ' + Caminho);
     edtArquivoBancoDados.SetFocus;
     edtArquivoBancoDados.SelectAll;
