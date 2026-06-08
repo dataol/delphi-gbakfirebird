@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls,
-  Vcl.ExtCtrls, Vcl.ImgList, System.ImageList, Registry;
+  Vcl.ExtCtrls, Vcl.ImgList, System.ImageList, System.Math, Win.Registry;
 
 type
   TfrmBackupFirebird = class(TForm)
@@ -53,7 +53,10 @@ var
 begin
   Result := 'Desconhecido';
 
-  if not FileExists(CaminhoBanco) then Exit;
+  if not FileExists(CaminhoBanco)then
+  begin
+    Exit;
+  end;
 
   try
     FS := TFileStream.Create(CaminhoBanco, fmOpenRead or fmShareDenyNone);
@@ -73,23 +76,27 @@ begin
         11: Result := 'Versão do banco: Firebird 2.5 (ODS 11)';
         12: Result := 'Versão do banco: Firebird 3.0 (ODS 12)';
         13:
+        begin
+          if (OdsMinor = 1) then
           begin
-             if OdsMinor = 1 then
-               Result := 'Versão do banco: Firebird 5.0 (ODS 13.1)'
-             else
-               Result := 'Versão do banco: Firebird 4.0 (ODS 13.0)';
+            Result := 'Versão do banco: Firebird 5.0 (ODS 13.1)';
+          end
+          else
+          begin
+            Result := 'Versão do banco: Firebird 4.0 (ODS 13.0)';
           end;
+        end;
       else
-        // Útil para debugging de versões futuras (ex: ODS 14)
         Result := 'Não foi possível identificar a versão do banco Firebird (ODS ' + IntToStr(OdsMajor) + '.' + IntToStr(OdsMinor) + ')';
       end;
-
     finally
       FS.Free;
     end;
   except
     on E: Exception do
+    begin
       Result := 'Erro leitura: ' + E.Message;
+    end;
   end;
 end;
 
@@ -139,7 +146,7 @@ end;
 
 procedure TfrmBackupFirebird.edtArquivoBancoDadosRightButtonClick(Sender: TObject);
 var
-  OpenDialog : TOpenDialog;
+  OpenDialog: TOpenDialog;
 begin
   OpenDialog := TOpenDialog.Create(Self);
   try
@@ -164,7 +171,7 @@ end;
 
 procedure TfrmBackupFirebird.edtArquivoBackupRightButtonClick(Sender: TObject);
 var
-  OpenDialog : TOpenDialog;
+  OpenDialog: TOpenDialog;
 begin
   OpenDialog := TOpenDialog.Create(Self);
   try
@@ -189,21 +196,20 @@ end;
 
 function TfrmBackupFirebird.ExecutaGBAK(Comando, Parametros, BackupRestore: string): Boolean;
 const
-  BUFFER_SIZE = 2400;
+  BUFFER_SIZE = 4096;
 var
   StartUpInfo: TStartUpInfo;
-  ProcessInformation: TProcessInformation;
-  ProcessOk: Boolean;
+  ProcessInfo: TProcessInformation;
   SecurityAttributes: TSecurityAttributes;
   StdOutPipeRead, StdOutPipeWrite: THandle;
-  Buffer: array[0..BUFFER_SIZE] of AnsiChar;
-  TotalBytesAvail,
-  BytesLeftThisMessage, BytesRead: Cardinal;
-  Linha: string;
-  Dir: string;
+  Buffer: array[0..BUFFER_SIZE] of AnsiChar; // Deixando espaço extra para o finalizador #0
+  BytesAvail, BytesRead: DWORD;
+  WaitRes, ExitCode: DWORD;
+  Linha, Dir, FullCmd: string;
 begin
   Result := False;
   Application.ProcessMessages;
+
   with SecurityAttributes do
   begin
     nLength := SizeOf(SecurityAttributes);
@@ -211,100 +217,95 @@ begin
     lpSecurityDescriptor := nil;
   end;
 
-  //create pipe for standard output redirection
-  CreatePipe(StdOutPipeRead, StdOutPipeWrite, @SecurityAttributes, 0);
+  // Cria o Pipe de comunicação (Canal invisível entre o DOS e o Delphi)
+  if not CreatePipe(StdOutPipeRead, StdOutPipeWrite, @SecurityAttributes, 0) then
+    Exit;
+
   try
-    //Make child process use StdOutPipeWrite as standard out,
-    //and make sure it does not show on screen.
-    with StartUpInfo do
-    begin
-      FillChar(StartUpInfo,SizeOf(StartUpInfo),0);
-      cb := SizeOf(StartUpInfo);
-      dwFlags := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES;
+    FillChar(StartUpInfo, SizeOf(StartUpInfo), 0);
+    StartUpInfo.cb := SizeOf(StartUpInfo);
+    StartUpInfo.dwFlags := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES;
+    StartUpInfo.wShowWindow := SW_HIDE;
+    StartUpInfo.hStdInput  := GetStdHandle(STD_INPUT_HANDLE);
+    StartUpInfo.hStdOutput := StdOutPipeWrite;
+    StartUpInfo.hStdError  := StdOutPipeWrite;
 
-      if (Win32Platform = VER_PLATFORM_WIN32_WINDOWS) then
-      begin
-        wShowWindow := SW_HIDE;
-      end
-      else
-      begin
-        wShowWindow := SW_SHOWMINNOACTIVE;
-      end;
-
-      hStdInput := GetStdHandle(STD_INPUT_HANDLE);
-      hStdOutput := StdOutPipeWrite;
-      hStdError := StdOutPipeWrite;
-    end;
-
-    Dir := ExtractFilePath(ParamStr(0)) + '25/';
+    // Resolve o caminho do Firebird
+    Dir := ExtractFilePath(ParamStr(0));
     if rbFB30.Checked then
-    begin
-      Dir := ExtractFilePath(ParamStr(0)) + '30/';
-    end
+      Dir := Dir + '30\'
+    else if rbFB50.Checked then
+      Dir := Dir + '50\'
     else
-    if rbFB50.Checked then
-    begin
-      Dir := ExtractFilePath(ParamStr(0)) + '50/';
-    end;
+      Dir := Dir + '25\';
 
-    //launch the command line compiler
-    ProcessOK := CreateProcess(nil, PChar(Dir + Comando + ' ' + Parametros), nil, nil, True, IDLE_PRIORITY_CLASS or
-                               CREATE_NO_WINDOW, nil, nil, StartUpInfo, ProcessInformation);
-    //Now that the handle has been inherited, close write to be safe.
-    //We don't want to read or write to it accidentally.
-    CloseHandle(StdOutPipeWrite);
-    if (not ProcessOK) then
+    // Monta o comando do jeito original para não quebrar caminhos
+    FullCmd := Dir + Comando + ' ' + Parametros;
+    UniqueString(FullCmd);
+
+    // Executa o GBAK
+    if not CreateProcess(nil, PChar(FullCmd), nil, nil, True,
+                         CREATE_NO_WINDOW or NORMAL_PRIORITY_CLASS,
+                         nil, nil, StartUpInfo, ProcessInfo) then
     begin
+      CloseHandle(StdOutPipeWrite);
       Exit;
     end;
 
+    // FECHA O ESCRITOR NO PAI: Isso é obrigatório para o Pipe saber que o GBAK terminou
+    CloseHandle(StdOutPipeWrite);
+
     try
-      //get all output until dos app finishes
       Linha := '';
       lstVerbose.Items.Add('Inicializando ' + BackupRestore + '...');
       lstVerbose.Items.Add('');
-      repeat
-        ProcessOK := (WaitForSingleObject(ProcessInformation.hProcess,8) <> WAIT_OBJECT_0);
-        Application.ProcessMessages;
-        PeekNamedPipe(StdOutPipeRead, @Buffer, BUFFER_SIZE, @BytesRead, @TotalBytesAvail, @BytesLeftThisMessage);
-        if (BytesRead > 0) then
-        begin
-          if (BytesRead > BUFFER_SIZE) then
-          begin
-            BytesRead := BUFFER_SIZE;
-          end;
-          ProcessOK := ReadFile(StdOutPipeRead, Buffer, BytesRead, BytesRead, nil);
-        end;
-        //has anything been read?
-        if (BytesRead > 0) then
-        begin
-          //finish buffer to PChar
-          Buffer[BytesRead] := #0;
-          //combine the buffer with the rest of the last run
-          Linha := (Linha + string(Buffer));
-          while (Pos(#13#10, Linha) > 0) do
-          begin
-            lstVerbose.Items.Add(Trim(Copy(Linha, 1, Pos(#13#10, Linha) - 1)));
-            Linha := Copy(Linha,Pos(#13#10, Linha) + 2, 5000);
-          end;
-          lstVerbose.ItemIndex := (lstVerbose.Items.Count - 1);
-        end;
-      until (not ProcessOK) {or (BytesRead=0)};
 
-      if (BackupRestore = 'Backup') then
+      repeat
+        Application.ProcessMessages;
+
+        // Verifica se o GBAK terminou ou ainda está processando
+        WaitRes := WaitForSingleObject(ProcessInfo.hProcess, 10);
+
+        // Enquanto houver texto no Pipe, lê tudo
+        while True do
+        begin
+          if not PeekNamedPipe(StdOutPipeRead, nil, 0, nil, @BytesAvail, nil) then
+            BytesAvail := 0;
+
+          // Se não tem texto novo agora, quebra o while e volta a aguardar o GBAK
+          if BytesAvail = 0 then
+            Break;
+
+          if ReadFile(StdOutPipeRead, Buffer, Min(BytesAvail, BUFFER_SIZE), BytesRead, nil) and (BytesRead > 0) then
+          begin
+            Buffer[BytesRead] := #0; // Finaliza o buffer C-String
+            Linha := Linha + string(PAnsiChar(@Buffer));
+
+            // Corta as linhas e joga no ListBox
+            while Pos(#13#10, Linha) > 0 do
+            begin
+              lstVerbose.Items.Add(Trim(Copy(Linha, 1, Pos(#13#10, Linha) - 1)));
+              Delete(Linha, 1, Pos(#13#10, Linha) + 1); // Delete é mais rápido/seguro que o Copy aqui
+            end;
+            lstVerbose.ItemIndex := lstVerbose.Items.Count - 1;
+          end;
+        end;
+
+      // Sai do laço apenas quando o processo for completamente encerrado
+      until (WaitRes = WAIT_OBJECT_0);
+
+      // NOVIDADE: Imprime qualquer restinho de log que tenha vindo sem o Enter (#13#10)
+      if Trim(Linha) <> '' then
       begin
-        Result := (Copy(lstVerbose.Items.Strings[lstVerbose.Items.Count - 1], 1, 45) = 'gbak:closing file, committing, and finishing.');
-      end
-      else
-      if (BackupRestore = 'Restore') then
-      begin
-        Result := ((Copy(lstVerbose.Items.Strings[lstVerbose.Items.Count - 1], 1, 40) = 'gbak:finishing, closing, and going home') or
-                   (Copy(lstVerbose.Items.Strings[lstVerbose.Items.Count - 2], 1, 40) = 'gbak:finishing, closing, and going home'));
-      end
-      else
-      begin
-        Result := False;
+        lstVerbose.Items.Add(Trim(Linha));
+        lstVerbose.ItemIndex := lstVerbose.Items.Count - 1;
       end;
+
+      // ====================================================================
+      // VALIDAÇÃO CIENTÍFICA DO SUCESSO DO BACKUP (CÓDIGO DE SAÍDA)
+      // ====================================================================
+      GetExitCodeProcess(ProcessInfo.hProcess, ExitCode);
+      Result := (ExitCode = 0); // 0 = Sucesso absoluto no Windows
 
       lstVerbose.Items.Add('');
       if Result then
@@ -312,25 +313,27 @@ begin
         lstVerbose.Items.Add(BackupRestore + ' realizado com sucesso!');
         if (BackupRestore = 'Backup') then
         begin
-          edtArquivoBackup.Text := Copy(edtArquivoBancoDados.Text, 1, (Length(edtArquivoBancoDados.Text) - 3)) + 'FBK';
+          edtArquivoBackup.Text := ChangeFileExt(edtArquivoBancoDados.Text, '.FBK');
           btnRestore.Enabled := True;
         end;
       end
       else
       begin
         lstVerbose.Items.Add('ATENÇÃO! Falha ao realizar ' + BackupRestore);
-        Application.MessageBox(PChar('ATENÇÃO! Falha ao realizar ' + BackupRestore + #13 +
-                                     'Provavelmente o arquivo foi danificado no processo.'),
+        Application.MessageBox(PChar('ATENÇÃO! Falha ao realizar ' + BackupRestore + '.' + #13#10 +
+                                     'Verifique o log de mensagens para mais detalhes.'),
                                PChar(Application.Title), MB_OK + MB_ICONERROR);
         if (BackupRestore = 'Backup') then
         begin
           btnRestore.Enabled := False;
         end;
       end;
-      lstVerbose.ItemIndex := (lstVerbose.Items.Count - 1);
+
+      lstVerbose.ItemIndex := lstVerbose.Items.Count - 1;
+
     finally
-      CloseHandle(ProcessInformation.hThread);
-      CloseHandle(ProcessInformation.hProcess);
+      CloseHandle(ProcessInfo.hThread);
+      CloseHandle(ProcessInfo.hProcess);
     end;
   finally
     CloseHandle(StdOutPipeRead);
