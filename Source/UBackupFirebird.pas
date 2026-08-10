@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls,
-  Vcl.ExtCtrls, Vcl.ImgList, System.ImageList, System.Math, Win.Registry;
+  Vcl.ExtCtrls, Vcl.ImgList, System.ImageList, System.Math, Win.Registry,
+  System.IOUtils;
 
 type
   TfrmBackupFirebird = class(TForm)
@@ -22,6 +23,9 @@ type
     rbFB25: TRadioButton;
     rbFB30: TRadioButton;
     rbFB50: TRadioButton;
+    cbxPageSize: TComboBox;
+    lbl5: TLabel;
+    btnDBInfo: TButton;
     procedure btnBackupClick(Sender: TObject);
     procedure btnRestoreClick(Sender: TObject);
     procedure edtArquivoBancoDadosRightButtonClick(Sender: TObject);
@@ -29,6 +33,7 @@ type
     procedure lstVerboseDblClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure btnDBInfoClick(Sender: TObject);
   private
     function ExecutaGBAK(Comando, Parametros, BackupRestore: string): Boolean;
     function ValidarCaminhoArquivo(Caminho: string): Boolean;
@@ -100,8 +105,33 @@ begin
   end;
 end;
 
-procedure TfrmBackupFirebird.btnRestoreClick(Sender: TObject);
+procedure ExecutarComandoDOS(const Comando: string);
+var
+  StartupInfo: TStartupInfo;
+  ProcessInfo: TProcessInformation;
 begin
+  FillChar(StartupInfo, SizeOf(TStartupInfo), 0);
+  StartupInfo.cb := SizeOf(TStartupInfo);
+  StartupInfo.wShowWindow := SW_HIDE;
+  StartupInfo.dwFlags := STARTF_USESHOWWINDOW;
+
+  // MUDANÇA SÊNIOR: Removemos o 'cmd.exe /c'.
+  // Agora o Windows executa o ISQL direto, ignorando a crise das aspas múltiplas.
+  if CreateProcess(nil, PChar(Comando), nil, nil, False,
+    CREATE_NO_WINDOW, nil, nil, StartupInfo, ProcessInfo) then
+  begin
+    WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
+    CloseHandle(ProcessInfo.hProcess);
+    CloseHandle(ProcessInfo.hThread);
+  end;
+end;
+
+procedure TfrmBackupFirebird.btnRestoreClick(Sender: TObject);
+var
+  ComandoPageSize: string;
+begin
+  ComandoPageSize := '-page_size 8192';
+
   lstVerbose.Items.Clear;
 
   if not ValidarCaminhoArquivo(edtArquivoBackup.Text) then
@@ -115,7 +145,7 @@ begin
     btnRestore.Enabled := False;
     lstVerbose.Enabled := False;
     ExecutaGBak('GBAK -CREATE -VERBOSE -REPLACE_DATABASE ' +
-                edtParametroExtra.Text + ' ' + edtArquivoBackup.Text + ' ' +
+                edtParametroExtra.Text + ' ' + ComandoPageSize + ' ' + edtArquivoBackup.Text + ' ' +
                 StringReplace(AnsiUpperCase(edtArquivoBackup.Text),'.FBK', '.FDB', [rfReplaceAll]) + ' ' +
                 '-USER SYSDBA -PASSWORD masterkey', '', 'Restore');
   finally
@@ -202,7 +232,7 @@ var
   ProcessInfo: TProcessInformation;
   SecurityAttributes: TSecurityAttributes;
   StdOutPipeRead, StdOutPipeWrite: THandle;
-  Buffer: array[0..BUFFER_SIZE] of AnsiChar; // Deixando espaço extra para o finalizador #0
+  Buffer: array[0..BUFFER_SIZE] of AnsiChar;
   BytesAvail, BytesRead: DWORD;
   WaitRes, ExitCode: DWORD;
   Linha, Dir, FullCmd: string;
@@ -219,31 +249,40 @@ begin
 
   // Cria o Pipe de comunicação (Canal invisível entre o DOS e o Delphi)
   if not CreatePipe(StdOutPipeRead, StdOutPipeWrite, @SecurityAttributes, 0) then
+  begin
     Exit;
+  end;
 
   try
     FillChar(StartUpInfo, SizeOf(StartUpInfo), 0);
-    StartUpInfo.cb := SizeOf(StartUpInfo);
-    StartUpInfo.dwFlags := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES;
+    StartUpInfo.cb          := SizeOf(StartUpInfo);
+    StartUpInfo.dwFlags     := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES;
     StartUpInfo.wShowWindow := SW_HIDE;
-    StartUpInfo.hStdInput  := GetStdHandle(STD_INPUT_HANDLE);
-    StartUpInfo.hStdOutput := StdOutPipeWrite;
-    StartUpInfo.hStdError  := StdOutPipeWrite;
+    StartUpInfo.hStdInput   := GetStdHandle(STD_INPUT_HANDLE);
+    StartUpInfo.hStdOutput  := StdOutPipeWrite;
+    StartUpInfo.hStdError   := StdOutPipeWrite;
 
-    // Resolve o caminho do Firebird
+    //caminho do firebird
     Dir := ExtractFilePath(ParamStr(0));
     if rbFB30.Checked then
-      Dir := Dir + '30\'
-    else if rbFB50.Checked then
-      Dir := Dir + '50\'
+    begin
+      Dir := Dir + '30\';
+    end
     else
+    if rbFB50.Checked then
+    begin
+      Dir := Dir + '50\';
+    end
+    else
+    begin
       Dir := Dir + '25\';
+    end;
 
-    // Monta o comando do jeito original para não quebrar caminhos
+    //comando original para não quebrar caminhos
     FullCmd := Dir + Comando + ' ' + Parametros;
     UniqueString(FullCmd);
 
-    // Executa o GBAK
+    //executa o gbak
     if not CreateProcess(nil, PChar(FullCmd), nil, nil, True,
                          CREATE_NO_WINDOW or NORMAL_PRIORITY_CLASS,
                          nil, nil, StartUpInfo, ProcessInfo) then
@@ -252,60 +291,50 @@ begin
       Exit;
     end;
 
-    // FECHA O ESCRITOR NO PAI: Isso é obrigatório para o Pipe saber que o GBAK terminou
     CloseHandle(StdOutPipeWrite);
 
     try
       Linha := '';
       lstVerbose.Items.Add('Inicializando ' + BackupRestore + '...');
       lstVerbose.Items.Add('');
-
       repeat
         Application.ProcessMessages;
-
-        // Verifica se o GBAK terminou ou ainda está processando
         WaitRes := WaitForSingleObject(ProcessInfo.hProcess, 10);
-
-        // Enquanto houver texto no Pipe, lê tudo
         while True do
         begin
           if not PeekNamedPipe(StdOutPipeRead, nil, 0, nil, @BytesAvail, nil) then
+          begin
             BytesAvail := 0;
+          end;
 
-          // Se não tem texto novo agora, quebra o while e volta a aguardar o GBAK
-          if BytesAvail = 0 then
+          if (BytesAvail = 0) then
+          begin
             Break;
+          end;
 
           if ReadFile(StdOutPipeRead, Buffer, Min(BytesAvail, BUFFER_SIZE), BytesRead, nil) and (BytesRead > 0) then
           begin
             Buffer[BytesRead] := #0; // Finaliza o buffer C-String
             Linha := Linha + string(PAnsiChar(@Buffer));
 
-            // Corta as linhas e joga no ListBox
             while Pos(#13#10, Linha) > 0 do
             begin
               lstVerbose.Items.Add(Trim(Copy(Linha, 1, Pos(#13#10, Linha) - 1)));
-              Delete(Linha, 1, Pos(#13#10, Linha) + 1); // Delete é mais rápido/seguro que o Copy aqui
+              Delete(Linha, 1, Pos(#13#10, Linha) + 1);
             end;
             lstVerbose.ItemIndex := lstVerbose.Items.Count - 1;
           end;
         end;
-
-      // Sai do laço apenas quando o processo for completamente encerrado
       until (WaitRes = WAIT_OBJECT_0);
 
-      // NOVIDADE: Imprime qualquer restinho de log que tenha vindo sem o Enter (#13#10)
-      if Trim(Linha) <> '' then
+      if (Trim(Linha) <> '') then
       begin
         lstVerbose.Items.Add(Trim(Linha));
         lstVerbose.ItemIndex := lstVerbose.Items.Count - 1;
       end;
 
-      // ====================================================================
-      // VALIDAÇÃO CIENTÍFICA DO SUCESSO DO BACKUP (CÓDIGO DE SAÍDA)
-      // ====================================================================
       GetExitCodeProcess(ProcessInfo.hProcess, ExitCode);
-      Result := (ExitCode = 0); // 0 = Sucesso absoluto no Windows
+      Result := (ExitCode = 0); // 0 = Sucesso
 
       lstVerbose.Items.Add('');
       if Result then
@@ -369,6 +398,70 @@ begin
   end;
 end;
 
+procedure ObterInformacoesCompletas(const CaminhoBanco, CaminhoISQL: string;
+  out VersaoFB: string; out TamanhoMB: Double; out PageSize: Integer);
+var
+  ScriptSQL, SaidaTXT: TStringList;
+  CmdISQL, RespostaLimpa, PastaApp, ArqSQL, ArqTXT: string;
+  PosicaoSeparador: Integer;
+begin
+  VersaoFB  := 'Desconhecida';
+  TamanhoMB := 0.0;
+  PageSize  := 0;
+
+  PastaApp := ExtractFilePath(ParamStr(0));
+  ArqSQL   := PastaApp + 'script_info.sql';
+  ArqTXT   := PastaApp + 'saida_info.txt';
+
+  if TFile.Exists(CaminhoBanco) then
+  begin
+    TamanhoMB := TFile.GetSize(CaminhoBanco) / 1048576;
+  end;
+
+  ScriptSQL := TStringList.Create;
+  SaidaTXT  := TStringList.Create;
+  try
+    ScriptSQL.Add('SET HEADING OFF;');
+    ScriptSQL.Add('SELECT TRIM(MON$PAGE_SIZE) || '';'' || TRIM(RDB$GET_CONTEXT(''SYSTEM'', ''ENGINE_VERSION'')) FROM MON$DATABASE;');
+    ScriptSQL.SaveToFile(ArqSQL);
+
+    CmdISQL := Format('"%s" -q -user SYSDBA -password masterkey "%s" -i "%s" -o "%s"',
+                      [CaminhoISQL, CaminhoBanco, ArqSQL, ArqTXT]);
+
+    ExecutarComandoDOS(CmdISQL);
+
+    if FileExists(ArqTXT) then
+    begin
+      SaidaTXT.LoadFromFile(ArqTXT);
+
+      if (SaidaTXT.Count > 0) then
+      begin
+        RespostaLimpa    := Trim(SaidaTXT.Text);
+        PosicaoSeparador := Pos(';', RespostaLimpa);
+
+        if (PosicaoSeparador > 0) then
+        begin
+          PageSize := StrToIntDef(Copy(RespostaLimpa, 1, PosicaoSeparador - 1), 0);
+          VersaoFB := Copy(RespostaLimpa, PosicaoSeparador + 1, Length(RespostaLimpa));
+        end;
+      end;
+    end;
+  finally
+    ScriptSQL.Free;
+    SaidaTXT.Free;
+
+    if FileExists(ArqSQL) then
+    begin
+      DeleteFile(ArqSQL);
+    end;
+
+    if FileExists(ArqTXT) then
+    begin
+      DeleteFile(ArqTXT);
+    end;
+  end;
+end;
+
 procedure TfrmBackupFirebird.FormShow(Sender: TObject);
 begin
   Caption := 'GBAK Firebird v.' + GetVersion(Application.ExeName);
@@ -420,6 +513,27 @@ begin
   end;
 
   Result := True;
+end;
+
+procedure TfrmBackupFirebird.btnDBInfoClick(Sender: TObject);
+var
+  Versao: string;
+  Tamanho: Double;
+  Pagina: Integer;
+begin
+  ObterInformacoesCompletas(
+    edtArquivoBancoDados.Text,
+    ExtractFilePath(ParamStr(0)) + '50\isql.exe',
+    Versao,
+    Tamanho,
+    Pagina
+  );
+
+  ShowMessage(
+    'Versão do Firebird: ' + Versao + sLineBreak +
+    'Page Size: ' + IntToStr(Pagina div 1024) + ' KB (' + IntToStr(Pagina) + ' bytes)' + sLineBreak +
+    'Tamanho Físico: ' + FormatFloat(',0.00', Tamanho) + ' MB'
+  );
 end;
 
 procedure TfrmBackupFirebird.btnBackupClick(Sender: TObject);
