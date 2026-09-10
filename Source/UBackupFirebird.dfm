@@ -157,9 +157,10 @@ object frmBackupFirebird: TfrmBackupFirebird
     Left = 711
     Top = 88
     Width = 75
-    Height = 25
+    Height = 28
     Caption = 'DB &Info'
     ImageIndex = 3
+    ImageMargins.Left = 5
     Images = imlBackupFirebird
     TabOrder = 9
     OnClick = btnDBInfoClick

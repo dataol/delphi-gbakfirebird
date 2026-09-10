@@ -143,6 +143,7 @@ begin
   try
     btnBackup.Enabled  := False;
     btnRestore.Enabled := False;
+    btnDBInfo.Enabled  := False;
     lstVerbose.Enabled := False;
     ExecutaGBak('GBAK -CREATE -VERBOSE -REPLACE_DATABASE ' +
                 edtParametroExtra.Text + ' ' + ComandoPageSize + ' ' + edtArquivoBackup.Text + ' ' +
@@ -151,6 +152,7 @@ begin
   finally
     btnBackup.Enabled  := True;
     btnRestore.Enabled := True;
+    btnDBInfo.Enabled  := True;
     lstVerbose.Enabled := True;
     Screen.Cursor      := crDefault;
   end;
@@ -552,6 +554,7 @@ begin
   try
     btnBackup.Enabled  := False;
     btnRestore.Enabled := False;
+    btnDBInfo.Enabled  := False;
     lstVerbose.Enabled := False;
     ExecutaGBak('GBAK -BACKUP -VERBOSE -TRANSPORTABLE -IGNORE -GARBAGE -LIMBO ' +
                 edtParametroExtra.Text + ' ' + edtArquivoBancoDados.Text + ' ' +
@@ -560,6 +563,7 @@ begin
   finally
     btnBackup.Enabled  := True;
     btnRestore.Enabled := True;
+    btnDBInfo.Enabled  := True;
     lstVerbose.Enabled := True;
     Screen.Cursor := crDefault;
   end;
